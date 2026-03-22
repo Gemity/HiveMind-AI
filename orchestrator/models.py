@@ -474,8 +474,14 @@ class ReviewArtifact:
 
     @classmethod
     def from_dict(cls, d: dict) -> ReviewArtifact:
+        # Support both nested {"metadata": {...}} and top-level metadata fields.
+        # The spec defines metadata at the top level; legacy format nests it.
+        if "metadata" in d and isinstance(d["metadata"], dict):
+            metadata = ArtifactMetadata.from_dict(d["metadata"])
+        else:
+            metadata = ArtifactMetadata.from_dict(d)
         return cls(
-            metadata=ArtifactMetadata.from_dict(d.get("metadata", {})),
+            metadata=metadata,
             result=d.get("result", ""),
             blocking_reason=d.get("blocking_reason"),
             approved_design_version=d.get("approved_design_version", 0),

@@ -152,3 +152,34 @@ class TestParseReviewJson:
         assert len(review.issues) == 1
         assert review.issues[0].severity == "critical"
         assert review.summary.critical_count == 1
+
+    def test_parses_top_level_metadata_review(self, tmp_path: Path):
+        """ISS-002: spec defines metadata at top level, not nested."""
+        review_data = {
+            "artifact_type": "review",
+            "artifact_version": 1,
+            "run_id": "run-top-level",
+            "iteration": 1,
+            "phase": "reviewing",
+            "phase_attempt": 1,
+            "producer": "codex",
+            "created_at": "2026-01-01T00:00:00Z",
+            "result": "pass",
+            "blocking_reason": None,
+            "approved_design_version": 1,
+            "issues": [],
+            "summary": {
+                "total_issues": 0,
+                "critical_count": 0,
+                "major_count": 0,
+                "minor_count": 0,
+                "design_change_required": False,
+            },
+        }
+        path = tmp_path / "review.json"
+        path.write_text(json.dumps(review_data))
+
+        review = parse_review_json(path)
+        assert review.result == "pass"
+        assert review.metadata.run_id == "run-top-level"
+        assert review.metadata.producer == "codex"

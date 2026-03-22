@@ -170,6 +170,8 @@ def cmd_check_transition(args: argparse.Namespace) -> None:
             artifacts_dir / IMPLEMENTATION_REPORT_MD, state,
         )
         artifact_valid = result.valid
+        if artifact_valid:
+            report_result = _extract_report_result(artifacts_dir / IMPLEMENTATION_REPORT_MD)
 
     elif phase == Phase.REVIEWING:
         result = validate_review_pair(
@@ -188,6 +190,8 @@ def cmd_check_transition(args: argparse.Namespace) -> None:
             expected_mode=ImplementationMode.FIX,
         )
         artifact_valid = result.valid
+        if artifact_valid:
+            report_result = _extract_report_result(artifacts_dir / IMPLEMENTATION_REPORT_MD)
 
     else:
         print(f"No transition logic for phase: {state.phase}")
@@ -204,6 +208,17 @@ def cmd_check_transition(args: argparse.Namespace) -> None:
         print(f"Human gate: {decision.human_gate_reason}")
     if decision.notes:
         print(f"Notes:      {decision.notes}")
+
+
+def _extract_report_result(report_path: Path) -> str:
+    """Extract the 'result' field from an implementation report's frontmatter."""
+    from orchestrator.artifact_parser import parse_markdown_frontmatter
+
+    try:
+        metadata, _ = parse_markdown_frontmatter(report_path)
+        return metadata.extra.get("result", "success")
+    except Exception:
+        return "success"
 
 
 def _print_validation(name: str, result) -> None:

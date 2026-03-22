@@ -138,7 +138,7 @@ class TestResolveReviewingExit:
         review = _make_review(result="fail", issues=issues)
         decision = resolve_reviewing_exit(state, review)
         assert decision.next_phase == Phase.DESIGNING
-        assert decision.increment_iteration
+        assert not decision.increment_iteration  # ISS-005: redesign stays same iteration
 
     def test_blocked_goes_to_human(self):
         state = _make_state(phase="reviewing")
@@ -228,3 +228,17 @@ class TestApplyTransition:
         assert new_state.phase == "needs_human"
         assert new_state.human_gate.required is True
         assert new_state.status == "waiting_human"
+
+    def test_open_human_gate_without_reason(self):
+        """open_human_gate=True with reason=None should still trigger gate."""
+        state = _make_state(phase="implementing")
+        decision = TransitionDecision(
+            next_phase=Phase.NEEDS_HUMAN,
+            open_human_gate=True,
+            human_gate_reason=None,
+        )
+        new_state = apply_transition(state, decision)
+        assert new_state.phase == "needs_human"
+        assert new_state.human_gate.required is True
+        assert new_state.status == "waiting_human"
+        assert new_state.human_gate.reason is not None
