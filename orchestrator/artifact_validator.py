@@ -34,7 +34,7 @@ DESIGN_REQUIRED_SECTIONS = [
 ]
 
 IMPLEMENTATION_REPORT_REQUIRED_SECTIONS = [
-    "Summary", "Files Changed", "Tests Run", "Known Risks",
+    "Summary", "Files Changed", "Tests Run", "Known Risks", "Amendment Requests",
 ]
 
 REVIEW_MD_REQUIRED_SECTIONS = [
@@ -257,6 +257,7 @@ def validate_review_pair(
                 review.metadata, state, ArtifactType.REVIEW, Producer.CODEX,
             )
             result = result.merge(json_meta_result)
+            result = result.merge(validate_input_fingerprint(review.metadata, state))
 
             # Cross-check: critical count in summary matches actual critical issues
             actual_critical = sum(1 for i in review.issues if i.severity == "critical")

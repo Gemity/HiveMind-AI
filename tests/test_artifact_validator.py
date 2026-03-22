@@ -260,6 +260,9 @@ All pass
 
 # Known Risks
 None
+
+# Amendment Requests
+None
 """
         path = tmp_path / "implementation_report.md"
         path.write_text(content)
@@ -425,3 +428,55 @@ None
         result = validate_review_pair(md_path, json_path, state)
         assert not result.valid
         assert any("critical_count" in e for e in result.errors)
+
+    def test_stale_review_json_fingerprint_rejected(self, tmp_path: Path):
+        """ISS-006: review.json with stale input_fingerprint should be rejected."""
+        md_path, json_path = self._write_review_pair(tmp_path)
+        # Inject a stale fingerprint into the review.json metadata
+        data = json.loads(json_path.read_text())
+        data["metadata"]["input_fingerprint"] = {
+            "requirement_sha256": "stale_sha",
+        }
+        json_path.write_text(json.dumps(data))
+
+        state = _make_state(phase="reviewing")
+        state.current_inputs.requirement_sha256 = "current_sha"
+        result = validate_review_pair(md_path, json_path, state)
+        assert not result.valid
+        assert any("requirement_sha256" in e for e in result.errors)
+
+
+class TestMissingAmendmentRequests:
+    def test_implementation_report_missing_amendment_requests(self, tmp_path: Path):
+        """ISS-007: implementation report without Amendment Requests should fail."""
+        content = """---
+artifact_type: implementation_report
+artifact_version: 1
+run_id: run-20260323-120000-abcdef12
+iteration: 1
+phase: implementing
+phase_attempt: 1
+producer: claude
+created_at: 2026-01-01T00:00:00Z
+mode: implement
+result: success
+---
+
+# Summary
+Done
+
+# Files Changed
+- foo.py
+
+# Tests Run
+All pass
+
+# Known Risks
+None
+"""
+        path = tmp_path / "implementation_report.md"
+        path.write_text(content)
+        state = _make_state(phase="implementing")
+        result = validate_implementation_report(path, state, ImplementationMode.IMPLEMENT)
+        assert not result.valid
+        assert any("Amendment Requests" in e for e in result.errors)
