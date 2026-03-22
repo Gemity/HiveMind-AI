@@ -156,8 +156,8 @@ def resolve_reviewing_exit(state: WorkflowState, review: ReviewArtifact) -> Tran
         if needs_design_change or review.summary.design_change_required:
             return TransitionDecision(
                 next_phase=Phase.DESIGNING,
-                increment_iteration=True,
-                notes="Review failed with design changes required",
+                increment_iteration=False,
+                notes="Review failed with design changes required, same iteration",
             )
         else:
             return TransitionDecision(
@@ -333,8 +333,9 @@ def apply_transition(state: WorkflowState, decision: TransitionDecision) -> Work
         new_state = increment_iteration(new_state)
 
     # Open human gate if needed
-    if decision.open_human_gate and decision.human_gate_reason:
-        new_state = open_human_gate(new_state, decision.human_gate_reason)
+    if decision.open_human_gate:
+        reason = decision.human_gate_reason or "Human intervention required (no reason provided)"
+        new_state = open_human_gate(new_state, reason)
     elif decision.next_phase == Phase.DONE:
         new_state = mark_completed(new_state)
     else:

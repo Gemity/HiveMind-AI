@@ -76,6 +76,65 @@ class TestValidateArtifactMetadata:
         assert not result.valid
 
 
+    def test_phase_attempt_mismatch(self):
+        """ISS-003: stale artifact from earlier retry should be rejected."""
+        state = _make_state(phase_attempt=2)
+        meta = _make_metadata(phase_attempt=1)
+        result = validate_artifact_metadata(meta, state, ArtifactType.DESIGN, Producer.CODEX)
+        assert not result.valid
+        assert any("phase_attempt" in e for e in result.errors)
+
+
+class TestValidateInputFingerprint:
+    def test_matching_fingerprint(self):
+        from orchestrator.artifact_validator import validate_input_fingerprint
+        state = _make_state()
+        state.current_inputs.requirement_sha256 = "abc123"
+        state.current_inputs.design_sha256 = "def456"
+        meta = _make_metadata(extra={
+            "input_fingerprint": {
+                "requirement_sha256": "abc123",
+                "design_sha256": "def456",
+            }
+        })
+        result = validate_input_fingerprint(meta, state)
+        assert result.valid
+
+    def test_mismatched_requirement_sha(self):
+        """ISS-003: stale artifact with old input set should be rejected."""
+        from orchestrator.artifact_validator import validate_input_fingerprint
+        state = _make_state()
+        state.current_inputs.requirement_sha256 = "new_sha"
+        meta = _make_metadata(extra={
+            "input_fingerprint": {
+                "requirement_sha256": "old_sha",
+            }
+        })
+        result = validate_input_fingerprint(meta, state)
+        assert not result.valid
+        assert any("requirement_sha256" in e for e in result.errors)
+
+    def test_mismatched_design_sha(self):
+        from orchestrator.artifact_validator import validate_input_fingerprint
+        state = _make_state()
+        state.current_inputs.design_sha256 = "new_design"
+        meta = _make_metadata(extra={
+            "input_fingerprint": {
+                "design_sha256": "old_design",
+            }
+        })
+        result = validate_input_fingerprint(meta, state)
+        assert not result.valid
+        assert any("design_sha256" in e for e in result.errors)
+
+    def test_no_fingerprint_is_ok(self):
+        from orchestrator.artifact_validator import validate_input_fingerprint
+        state = _make_state()
+        meta = _make_metadata()
+        result = validate_input_fingerprint(meta, state)
+        assert result.valid
+
+
 class TestCheckRequiredSections:
     def test_all_present(self):
         sections = {"Objective": "x", "Scope": "y", "Constraints": "z"}
@@ -187,6 +246,7 @@ phase_attempt: 1
 producer: claude
 created_at: 2026-01-01T00:00:00Z
 mode: {mode}
+result: success
 ---
 
 # Summary
@@ -216,6 +276,73 @@ None
         state = _make_state(phase="fixing")
         result = validate_implementation_report(path, state, ImplementationMode.FIX)
         assert not result.valid
+
+    def test_missing_result_field(self, tmp_path: Path):
+        """Implementation report without 'result' in metadata should fail."""
+        content = """---
+artifact_type: implementation_report
+artifact_version: 1
+run_id: run-20260323-120000-abcdef12
+iteration: 1
+phase: implementing
+phase_attempt: 1
+producer: claude
+created_at: 2026-01-01T00:00:00Z
+mode: implement
+---
+
+# Summary
+Done
+
+# Files Changed
+- foo.py
+
+# Tests Run
+All pass
+
+# Known Risks
+None
+"""
+        path = tmp_path / "implementation_report.md"
+        path.write_text(content)
+        state = _make_state(phase="implementing")
+        result = validate_implementation_report(path, state, ImplementationMode.IMPLEMENT)
+        assert not result.valid
+        assert any("result" in e.lower() for e in result.errors)
+
+    def test_invalid_result_field(self, tmp_path: Path):
+        """Implementation report with invalid 'result' value should fail."""
+        content = """---
+artifact_type: implementation_report
+artifact_version: 1
+run_id: run-20260323-120000-abcdef12
+iteration: 1
+phase: implementing
+phase_attempt: 1
+producer: claude
+created_at: 2026-01-01T00:00:00Z
+mode: implement
+result: banana
+---
+
+# Summary
+Done
+
+# Files Changed
+- foo.py
+
+# Tests Run
+All pass
+
+# Known Risks
+None
+"""
+        path = tmp_path / "implementation_report.md"
+        path.write_text(content)
+        state = _make_state(phase="implementing")
+        result = validate_implementation_report(path, state, ImplementationMode.IMPLEMENT)
+        assert not result.valid
+        assert any("banana" in e for e in result.errors)
 
 
 class TestValidateReviewPair:

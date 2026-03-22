@@ -35,20 +35,13 @@ def acquire_lock(
     ttl_seconds: int = DEFAULT_LOCK_TTL_SECONDS,
     path: Path = LOCK_PATH,
 ) -> LockRecord:
-    """Atomically create lock.json. Raises if a valid lock exists."""
+    """Atomically create lock.json using O_CREAT|O_EXCL to prevent races.
+
+    If a stale lock exists (expired + owner dead), it is recovered first
+    in a separate step, then exclusive creation is re-attempted.
+    """
     path = Path(path)
-
-    # Check existing lock
-    existing = read_lock(path)
-    if existing and not is_lock_expired(existing):
-        raise RuntimeError(
-            f"Lock already held by owner={existing.owner} pid={existing.pid} "
-            f"until {existing.expires_at}"
-        )
-
-    # If expired lock exists, try recovery first
-    if existing and is_lock_expired(existing):
-        recover_stale_lock(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     now = _now_utc()
     lock = LockRecord(
@@ -62,10 +55,47 @@ def acquire_lock(
         acquired_at=now.isoformat(),
         expires_at=(now + timedelta(seconds=ttl_seconds)).isoformat(),
     )
-
     data = json.dumps(lock.to_dict(), indent=2, ensure_ascii=False) + "\n"
-    atomic_write(path, data)
-    return lock
+
+    try:
+        _exclusive_create(path, data)
+        return lock
+    except FileExistsError:
+        pass
+
+    # File exists — check if it is stale and can be recovered
+    existing = read_lock(path)
+    if existing and not is_lock_expired(existing):
+        raise RuntimeError(
+            f"Lock already held by owner={existing.owner} pid={existing.pid} "
+            f"until {existing.expires_at}"
+        )
+
+    # Attempt stale-lock recovery, then retry exclusive create
+    recover_stale_lock(path)
+
+    try:
+        _exclusive_create(path, data)
+        return lock
+    except FileExistsError:
+        # Another process won the race during recovery
+        raise RuntimeError("Lock contention: another process acquired the lock during recovery")
+
+
+def _exclusive_create(path: Path, data: str, encoding: str = "utf-8") -> None:
+    """Create a file exclusively (O_CREAT|O_EXCL). Raises FileExistsError if it exists."""
+    fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    try:
+        with os.fdopen(fd, "w", encoding=encoding) as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+    except BaseException:
+        try:
+            os.unlink(str(path))
+        except OSError:
+            pass
+        raise
 
 
 def release_lock(path: Path = LOCK_PATH) -> None:

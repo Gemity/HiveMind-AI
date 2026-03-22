@@ -44,6 +44,42 @@ class TestAcquireLock:
             acquire_lock(state, path=lock_path)
 
 
+    def test_exclusive_create_prevents_race(self, tmp_path: Path):
+        """ISS-001: two acquires without release should fail the second."""
+        lock_path = tmp_path / "lock.json"
+        state = _make_state()
+        acquire_lock(state, path=lock_path)
+        # Second acquire must fail even though lock is not expired
+        with pytest.raises(RuntimeError):
+            acquire_lock(state, path=lock_path)
+        # File should still exist and be valid
+        lock = read_lock(lock_path)
+        assert lock is not None
+        assert lock.run_id == state.run_id
+
+    def test_recover_and_reacquire(self, tmp_path: Path):
+        """ISS-001: after stale lock recovery, a new acquire should succeed."""
+        import socket
+        lock_path = tmp_path / "lock.json"
+        # Write a stale lock with dead PID
+        stale_data = json.dumps({
+            "lock_version": 1,
+            "run_id": "run-stale",
+            "owner": "old",
+            "pid": 99999999,
+            "hostname": socket.gethostname(),
+            "phase": "designing",
+            "phase_attempt": 1,
+            "acquired_at": "2020-01-01T00:00:00Z",
+            "expires_at": "2020-01-01T00:01:00Z",
+        })
+        lock_path.write_text(stale_data)
+
+        state = _make_state()
+        lock = acquire_lock(state, path=lock_path)
+        assert lock.run_id == state.run_id
+
+
 class TestReleaseLock:
     def test_removes_file(self, tmp_path: Path):
         lock_path = tmp_path / "lock.json"
