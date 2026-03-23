@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import orchestrator.prompt_builder as prompt_builder
 from orchestrator.prompt_builder import build_prompt, get_prompt_output_path
 from orchestrator.models import (
     CurrentInputs,
@@ -59,3 +60,17 @@ class TestBuildPrompt:
             assert "No prompt template" in str(exc)
         else:
             raise AssertionError("Expected ValueError for unsupported phase")
+
+    def test_falls_back_to_template_prompts_directory(self, tmp_path: Path, monkeypatch):
+        fallback_dir = tmp_path / "template_prompts"
+        fallback_dir.mkdir()
+        template_path = fallback_dir / "codex_design_prompt.template.md"
+        template_path.write_text("run {{RUN_ID}} req {{REQUIREMENT_SHA256}}", encoding="utf-8")
+
+        monkeypatch.setattr(prompt_builder, "_TEMPLATE_DIRS", (tmp_path / "missing", fallback_dir))
+
+        state = _make_state(phase="designing")
+        prompt = prompt_builder.build_prompt(state, "designing")
+
+        assert "run run-20260323-120000-abcdef12" in prompt
+        assert "req req-sha" in prompt

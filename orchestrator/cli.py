@@ -214,8 +214,11 @@ def cmd_check_transition(args: argparse.Namespace) -> None:
 def cmd_run(args: argparse.Namespace) -> None:
     """Start the current phase by generating its prompt package and invoking the agent."""
     from orchestrator.audit_logger import (
+        log_agent_error,
+        log_agent_session,
         log_event,
         log_lock_event,
+        log_orchestrator,
         log_phase_start,
         log_validation_failure,
     )
@@ -242,10 +245,15 @@ def cmd_run(args: argparse.Namespace) -> None:
     try:
         lock = acquire_lock(state)
         log_lock_event(state.run_id, state.phase, state.iteration, "acquired")
+        log_orchestrator("INFO", state.run_id, state.phase, "Lock acquired")
 
         preconditions = check_preconditions(state, phase)
         if not preconditions.valid:
             log_validation_failure(state.run_id, state.phase, state.iteration, preconditions.errors)
+            log_orchestrator(
+                "ERROR", state.run_id, state.phase,
+                f"Precondition failed: {'; '.join(preconditions.errors)}",
+            )
             print(f"Cannot start phase: {state.phase}")
             for error in preconditions.errors:
                 print(f"  - {error}")
@@ -256,6 +264,11 @@ def cmd_run(args: argparse.Namespace) -> None:
         atomic_write(prompt_path, prompt)
 
         log_phase_start(state.run_id, state.phase, state.iteration, state.phase_attempt)
+        log_orchestrator(
+            "INFO", state.run_id, state.phase,
+            f"Phase started (attempt {state.phase_attempt}), invoking agent...",
+        )
+
         try:
             agent_result = run_agent(state, state.phase, str(prompt_path))
         except Exception as exc:
@@ -267,8 +280,24 @@ def cmd_run(args: argparse.Namespace) -> None:
                 f"Failed to invoke agent for phase {state.phase}",
                 details={"error": str(exc)},
             )
+            error_log = log_agent_error(
+                state.run_id, state.phase, state.phase_attempt,
+                exc, prompt_path=str(prompt_path),
+            )
+            log_orchestrator(
+                "ERROR", state.run_id, state.phase,
+                f"Agent invocation failed: {exc} (details: {error_log})",
+            )
             print(f"Failed to invoke agent: {exc}")
+            print(f"Error log:   {error_log}")
             sys.exit(1)
+
+        # Persist full agent output to a dedicated session log
+        session_log = log_agent_session(
+            state.run_id, state.phase, state.phase_attempt,
+            agent_result, str(prompt_path),
+        )
+
         log_event(
             "agent_invocation",
             state.phase,
@@ -279,7 +308,14 @@ def cmd_run(args: argparse.Namespace) -> None:
                 "agent": agent_result["agent"],
                 "command": agent_result["command"],
                 "returncode": agent_result["returncode"],
+                "session_log": str(session_log),
             },
+        )
+        log_orchestrator(
+            "INFO" if agent_result["ok"] else "ERROR",
+            state.run_id, state.phase,
+            f"Agent '{agent_result['agent']}' exited {agent_result['returncode']} "
+            f"(log: {session_log})",
         )
 
         print(f"Run ID:      {state.run_id}")
@@ -298,6 +334,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         elif phase == Phase.REVIEWING:
             print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_MD}")
             print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_JSON}")
+        print(f"Session log: {session_log}")
         if agent_result["stderr"].strip():
             print(f"Agent stderr: {agent_result['stderr'].strip()}")
         if not agent_result["ok"]:
@@ -306,6 +343,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         if lock is not None:
             release_lock()
             log_lock_event(state.run_id, state.phase, state.iteration, "released")
+            log_orchestrator("INFO", state.run_id, state.phase, "Lock released")
 
 
 def _extract_report_result(report_path: Path) -> str:
