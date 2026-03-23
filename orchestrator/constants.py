@@ -16,6 +16,7 @@ LOCK_PATH = STATE_DIR / "lock.json"
 AUDIT_LOG_PATH = LOGS_DIR / "audit.log"
 AGENT_LOGS_DIR = LOGS_DIR / "agents"
 ORCHESTRATOR_LOG_PATH = LOGS_DIR / "orchestrator.log"
+HUMAN_GATES_CONFIG_PATH = AI_LOOP_DIR / "config" / "human_gates.json"
 
 # Artifact file names
 DESIGN_MD = "design.md"
