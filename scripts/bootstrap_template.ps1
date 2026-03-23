@@ -45,6 +45,7 @@ New-Item -ItemType Directory -Force -Path $targetRoot | Out-Null
 $copyMap = @(
     @{ Source = (Join-Path $repoRoot "orchestrator"); Destination = (Join-Path $targetRoot "orchestrator") },
     @{ Source = (Join-Path $repoRoot "tests"); Destination = (Join-Path $targetRoot "tests") },
+    @{ Source = (Join-Path $repoRoot "skills"); Destination = (Join-Path $targetRoot "skills") },
     @{ Source = (Join-Path $repoRoot "pyproject.toml"); Destination = (Join-Path $targetRoot "pyproject.toml") },
     @{ Source = (Join-Path $repoRoot ".gitignore"); Destination = (Join-Path $targetRoot ".gitignore") },
     @{ Source = (Join-Path $repoRoot "orchestrator_runtime_spec.md"); Destination = (Join-Path $targetRoot "orchestrator_runtime_spec.md") },
@@ -73,6 +74,7 @@ Copied assets:
 
 - orchestrator runtime package
 - test suite
+- skills
 - runtime spec
 - clean .ai-loop workspace
 - prompt templates

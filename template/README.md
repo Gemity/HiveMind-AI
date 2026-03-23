@@ -15,6 +15,7 @@ Copy these items into the target workspace:
 
 - `orchestrator/`
 - `tests/`
+- `skills/`
 - `pyproject.toml`
 - `.gitignore`
 - `orchestrator_runtime_spec.md`
@@ -41,11 +42,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_template.ps1 -Targe
 
 1. Copy the reusable files into the target project.
 2. Copy `template/bootstrap/.ai-loop/` to `.ai-loop/` in the target project.
-3. Rewrite `.ai-loop/input/requirement.md` for the new project or feature.
-4. Initialize or update `.ai-loop/state/workflow_state.json`.
-5. Generate phase-specific prompt files from `template/prompts/`.
-6. Start the design phase with Codex.
-7. Continue with implement, review, and fix loops.
+3. Keep `skills/` available so future agents can re-read the embedded package through the onboarding skill.
+4. Rewrite `.ai-loop/input/requirement.md` for the new project or feature.
+5. Initialize or update `.ai-loop/state/workflow_state.json`.
+6. Generate phase-specific prompt files from `template/prompts/`.
+7. Start the design phase with Codex.
+8. Continue with implement, review, and fix loops.
 
 ## Template Philosophy
 
