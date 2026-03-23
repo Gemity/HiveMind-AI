@@ -65,8 +65,37 @@ Common CLI commands:
 py -m orchestrator status
 py -m orchestrator validate
 py -m orchestrator check-transition
+py -m orchestrator run
 py -m orchestrator init --requirement .ai-loop/input/requirement.md --force
 ```
+
+Git Bash shortcut:
+
+```bash
+bash run
+```
+
+Default agent commands:
+
+- `codex exec -` for `designing` and `reviewing`
+- `claude -p` for `implementing` and `fixing`
+
+Override them when your local CLI needs different flags:
+
+```powershell
+$env:HIVEMIND_CODEX_COMMAND = 'codex exec --cwd {cwd} {prompt_path}'
+$env:HIVEMIND_CLAUDE_COMMAND = 'claude -p'
+```
+
+Supported template placeholders:
+
+- `{prompt_path}`
+- `{cwd}`
+- `{phase}`
+- `{run_id}`
+- `{iteration}`
+- `{phase_attempt}`
+- `{agent}`
 
 ## Manual Workflow
 
@@ -91,6 +120,12 @@ If you need to initialize a fresh run:
 
 ```powershell
 py -m orchestrator init --requirement .ai-loop/input/requirement.md --force
+```
+
+Then generate the prompt package and invoke the assigned agent:
+
+```bash
+bash run
 ```
 
 ### 3. Design phase

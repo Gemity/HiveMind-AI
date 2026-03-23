@@ -1,6 +1,6 @@
 """Minimal CLI entrypoint for the orchestrator.
 
-Supports: status, init, validate, check-transition.
+Supports: status, init, validate, check-transition, run.
 Run via: python -m orchestrator <command>
 """
 
@@ -20,6 +20,7 @@ from orchestrator.constants import (
     REVIEW_MD,
     WORKFLOW_STATE_PATH,
 )
+from orchestrator.fileutil import atomic_write
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -210,6 +211,103 @@ def cmd_check_transition(args: argparse.Namespace) -> None:
         print(f"Notes:      {decision.notes}")
 
 
+def cmd_run(args: argparse.Namespace) -> None:
+    """Start the current phase by generating its prompt package and invoking the agent."""
+    from orchestrator.audit_logger import (
+        log_event,
+        log_lock_event,
+        log_phase_start,
+        log_validation_failure,
+    )
+    from orchestrator.agent_runner import run_agent
+    from orchestrator.lock_manager import acquire_lock, release_lock
+    from orchestrator.prompt_builder import build_prompt, get_prompt_output_path
+    from orchestrator.state_manager import load_state
+    from orchestrator.transition_engine import check_preconditions
+    from orchestrator.models import Phase
+
+    state_path = Path(args.state) if args.state else WORKFLOW_STATE_PATH
+    state = load_state(state_path)
+
+    phase = Phase(state.phase)
+    if phase == Phase.NEEDS_HUMAN:
+        reason = state.human_gate.reason or "Human intervention required"
+        print(f"Workflow is blocked by a human gate: {reason}")
+        sys.exit(1)
+    if phase == Phase.DONE:
+        print(f"Run already completed: {state.run_id}")
+        return
+
+    lock = None
+    try:
+        lock = acquire_lock(state)
+        log_lock_event(state.run_id, state.phase, state.iteration, "acquired")
+
+        preconditions = check_preconditions(state, phase)
+        if not preconditions.valid:
+            log_validation_failure(state.run_id, state.phase, state.iteration, preconditions.errors)
+            print(f"Cannot start phase: {state.phase}")
+            for error in preconditions.errors:
+                print(f"  - {error}")
+            sys.exit(1)
+
+        prompt = build_prompt(state, state.phase)
+        prompt_path = get_prompt_output_path(state.phase)
+        atomic_write(prompt_path, prompt)
+
+        log_phase_start(state.run_id, state.phase, state.iteration, state.phase_attempt)
+        try:
+            agent_result = run_agent(state, state.phase, str(prompt_path))
+        except Exception as exc:
+            log_event(
+                "agent_invocation_failed",
+                state.phase,
+                state.run_id,
+                state.iteration,
+                f"Failed to invoke agent for phase {state.phase}",
+                details={"error": str(exc)},
+            )
+            print(f"Failed to invoke agent: {exc}")
+            sys.exit(1)
+        log_event(
+            "agent_invocation",
+            state.phase,
+            state.run_id,
+            state.iteration,
+            f"Invoked {agent_result['agent']} for phase {state.phase}",
+            details={
+                "agent": agent_result["agent"],
+                "command": agent_result["command"],
+                "returncode": agent_result["returncode"],
+            },
+        )
+
+        print(f"Run ID:      {state.run_id}")
+        print(f"Phase:       {state.phase}")
+        print(f"Agent:       {agent_result['agent']}")
+        print(f"Prompt file: {prompt_path}")
+        print(f"Exit code:   {agent_result['returncode']}")
+        if agent_result["ok"]:
+            print("Status:      prompt package generated and agent invocation completed")
+        else:
+            print("Status:      agent invocation failed")
+        if phase == Phase.DESIGNING:
+            print(f"Expected:    {ARTIFACTS_CURRENT_DIR / DESIGN_MD}")
+        elif phase in (Phase.IMPLEMENTING, Phase.FIXING):
+            print(f"Expected:    {ARTIFACTS_CURRENT_DIR / IMPLEMENTATION_REPORT_MD}")
+        elif phase == Phase.REVIEWING:
+            print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_MD}")
+            print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_JSON}")
+        if agent_result["stderr"].strip():
+            print(f"Agent stderr: {agent_result['stderr'].strip()}")
+        if not agent_result["ok"]:
+            sys.exit(agent_result["returncode"] or 1)
+    finally:
+        if lock is not None:
+            release_lock()
+            log_lock_event(state.run_id, state.phase, state.iteration, "released")
+
+
 def _extract_report_result(report_path: Path) -> str:
     """Extract the 'result' field from an implementation report's frontmatter."""
     from orchestrator.artifact_parser import parse_markdown_frontmatter
@@ -257,6 +355,9 @@ def main() -> None:
     # check-transition
     subparsers.add_parser("check-transition", help="Dry-run phase transition check")
 
+    # run
+    subparsers.add_parser("run", help="Generate the prompt package for the current phase")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -268,6 +369,7 @@ def main() -> None:
         "init": cmd_init,
         "validate": cmd_validate,
         "check-transition": cmd_check_transition,
+        "run": cmd_run,
     }
 
     cmd_func = commands.get(args.command)

@@ -63,17 +63,47 @@ Common commands:
 py -m orchestrator status
 py -m orchestrator validate
 py -m orchestrator check-transition
+py -m orchestrator run
 py -m orchestrator init --requirement .ai-loop/input/requirement.md --force
 ```
+
+Or from Git Bash:
+
+```bash
+bash run
+```
+
+By default, `run` invokes:
+
+- `codex exec -` for `designing` and `reviewing`
+- `claude -p` for `implementing` and `fixing`
+
+If your local CLI uses different arguments, override them with:
+
+```powershell
+$env:HIVEMIND_CODEX_COMMAND = 'codex exec --cwd {cwd} {prompt_path}'
+$env:HIVEMIND_CLAUDE_COMMAND = 'claude -p'
+```
+
+Available placeholders inside these command templates:
+
+- `{prompt_path}`
+- `{cwd}`
+- `{phase}`
+- `{run_id}`
+- `{iteration}`
+- `{phase_attempt}`
+- `{agent}`
 
 ## Workflow
 
 1. Define the requirement in `.ai-loop/input/requirement.md`.
 2. Initialize or inspect run state in `.ai-loop/state/workflow_state.json`.
-3. Codex produces `design.md`.
-4. Claude implements code and updates `implementation_report.md`.
-5. Codex reviews and updates `review.md` and `review.json`.
-6. Claude fixes review findings until the review result becomes `PASS`.
+3. Run `bash run` to generate the prompt package and invoke the responsible agent.
+4. Codex produces `design.md`.
+5. Claude implements code and updates `implementation_report.md`.
+6. Codex reviews and updates `review.md` and `review.json`.
+7. Claude fixes review findings until the review result becomes `PASS`.
 
 Important rule:
 
