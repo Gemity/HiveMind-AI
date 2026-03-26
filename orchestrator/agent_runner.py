@@ -28,7 +28,7 @@ _ENV_VAR_BY_AGENT = {
 
 _DEFAULT_COMMANDS = {
     "codex": ["codex", "exec", "-"],
-    "claude": ["claude", "-p"],
+    "claude": ["claude", "-p", "--dangerously-skip-permissions"],
 }
 
 
