@@ -81,5 +81,5 @@ Must follow this JSON schema:
 
 **Field rules:**
 - `result` must be exactly one of: `pass`, `fail`, or `blocked`
-- `run_id`, `iteration`, `phase_attempt` must match the values above — copy them exactly
+- `run_id`, `iteration`, `phase_attempt` must match the values above --copy them exactly
 - Each issue in `issues` must have: `id`, `severity` (`critical`|`non_critical`), `description`, `requires_design_change` (boolean)

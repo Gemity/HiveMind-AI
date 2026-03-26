@@ -51,7 +51,7 @@ input_fingerprint:
 **Field rules:**
 - `mode` must be `implement` (not `fix`, not `complete`, not `status`)
 - `result` must be exactly one of: `success`, `blocked`, or `partial`
-- `run_id`, `iteration`, `phase_attempt` must match the values above — copy them exactly
+- `run_id`, `iteration`, `phase_attempt` must match the values above --copy them exactly
 - Do NOT use `status` as a substitute for `mode` or `result`
 
 Required markdown sections after frontmatter:

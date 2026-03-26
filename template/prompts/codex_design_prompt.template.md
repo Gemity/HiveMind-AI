@@ -49,7 +49,7 @@ input_fingerprint:
 **Field rules:**
 - `design_version` must be an integer starting at 1
 - `status` must be exactly one of: `draft`, `approved`, or `superseded`
-- `run_id`, `iteration`, `phase_attempt` must match the values above — copy them exactly
+- `run_id`, `iteration`, `phase_attempt` must match the values above --copy them exactly
 
 Required markdown sections after frontmatter:
 
