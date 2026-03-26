@@ -53,6 +53,8 @@ def run_agent(state: WorkflowState, phase: str, prompt_path: str) -> dict:
             cwd=str(_ROOT_DIR),
             input=prompt_text,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
         )

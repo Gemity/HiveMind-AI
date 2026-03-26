@@ -559,7 +559,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_MD}")
             print(f"Expected:    {ARTIFACTS_CURRENT_DIR / REVIEW_JSON}")
         print(f"Session log: {session_log}")
-        if agent_result["stderr"].strip():
+        if (agent_result["stderr"] or "").strip():
             print(f"Agent stderr: {agent_result['stderr'].strip()}")
         if not agent_result["ok"]:
             sys.exit(agent_result["returncode"] or 1)
