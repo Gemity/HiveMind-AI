@@ -30,8 +30,7 @@ function Copy-PathSafe {
     Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$templateRoot = Join-Path $repoRoot "template"
+$templateRoot = Split-Path -Parent $PSScriptRoot
 $targetRoot = [System.IO.Path]::GetFullPath($TargetPath)
 
 if ((Test-Path -LiteralPath $targetRoot) -and -not $Force) {

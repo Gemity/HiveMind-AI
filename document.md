@@ -11,39 +11,53 @@ Current role split:
 - Orchestrator: runtime logic, validation, transitions, and audit trail
 - Human: initializes runs, moves work between agents, and resolves blocked decisions
 
-This repository is still operated in a manual human-in-the-loop mode, but the codebase and `.ai-loop/` structure are designed to evolve toward more autonomous execution.
+This repository is still operated in a manual human-in-the-loop mode, but the codebase and `.ai-loop` structure are designed to evolve toward more autonomous execution.
 
 ## Repository Structure
 
 Important paths:
 
-- [orchestrator](D:\AI Project\HiveMind AI\orchestrator): Python package for the runtime
-- [tests](D:\AI Project\HiveMind AI\tests): test suite
-- [orchestrator_runtime_spec.md](D:\AI Project\HiveMind AI\orchestrator_runtime_spec.md): executable runtime contract
-- [orchestrator_runtime_design.md](D:\AI Project\HiveMind AI\orchestrator_runtime_design.md): earlier design draft
-- [.ai-loop](D:\AI Project\HiveMind AI\.ai-loop): live coordination workspace for agents
+- `orchestrator/`: Python package for the runtime
+- `tests/`: test suite
+- `skills/`: reusable helper skill content
+- `scripts/`: bootstrap and utility scripts
+- `template/`: portable bundle that can be copied into another project by itself
+- `.ai-loop/`: live coordination workspace for this repository
+- `orchestrator_runtime_spec.md`: executable runtime contract
 
-The `.ai-loop` directory is the operational center:
+The `.ai-loop` directory is the operational center of the current repo:
 
-- [.ai-loop/input](D:\AI Project\HiveMind AI\.ai-loop\input): requirements, human queue, and prompt packages
-- [.ai-loop/artifacts/current](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current): live artifacts for the current run
-- [.ai-loop/artifacts/history](D:\AI Project\HiveMind AI\.ai-loop\artifacts\history): reserved for archived run snapshots
-- [.ai-loop/state](D:\AI Project\HiveMind AI\.ai-loop\state): workflow state and lock files
-- [.ai-loop/logs](D:\AI Project\HiveMind AI\.ai-loop\logs): audit log
+- `.ai-loop/input`: requirements, human queue, and prompt packages
+- `.ai-loop/artifacts/current`: live artifacts for the current run
+- `.ai-loop/artifacts/history`: reserved for archived run snapshots
+- `.ai-loop/state`: workflow state and lock files
+- `.ai-loop/logs`: audit log
 
-## Main Runtime Files
+## Portable Template
 
-These are the files most often touched during manual orchestration:
+The recommended reusable package is now the `template/` folder itself.
 
-- [requirement.md](D:\AI Project\HiveMind AI\.ai-loop\input\requirement.md): problem statement and success criteria
-- [workflow_state.json](D:\AI Project\HiveMind AI\.ai-loop\state\workflow_state.json): canonical current state
-- [design.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\design.md): approved design artifact
-- [design_amendments.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\design_amendments.md): proposed design changes
-- [implementation_report.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\implementation_report.md): implementation/fix report from Claude
-- [review.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.md): human-readable review result from Codex
-- [review.json](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.json): machine-readable review result
-- [summary.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\summary.md): condensed status summary
-- [human_queue.md](D:\AI Project\HiveMind AI\.ai-loop\input\human_queue.md): manual decision log
+That means when you want to bring HiveMind into another project, you should only need to carry:
+
+- `template/`
+
+Inside `template/` there is already a self-contained bundle with:
+
+- runtime code
+- tests
+- scripts
+- skills
+- clean `.ai-loop`
+- prompt templates
+- `run`
+- `.gitignore`
+- `pyproject.toml`
+- runtime spec
+
+You have two ways to use it:
+
+1. Copy the whole `template/` folder somewhere else and rename it into the new workspace root.
+2. Run `template/scripts/bootstrap_template.ps1` to materialize a fresh workspace elsewhere.
 
 ## Python Commands
 
@@ -101,7 +115,7 @@ Supported template placeholders:
 
 ### 1. Prepare the requirement
 
-Edit [requirement.md](D:\AI Project\HiveMind AI\.ai-loop\input\requirement.md) so it clearly states:
+Edit `.ai-loop/input/requirement.md` so it clearly states:
 
 - project goal
 - constraints
@@ -132,29 +146,21 @@ bash run
 
 Codex produces or updates:
 
-- [design.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\design.md)
-
-Prompt package used for this phase:
-
-- [codex_design_prompt.md](D:\AI Project\HiveMind AI\.ai-loop\input\codex_design_prompt.md)
+- `.ai-loop/artifacts/current/design.md`
 
 ### 4. Implement phase
 
-Claude implements code based on the approved design and produces:
+Claude implements code and produces:
 
-- code changes in [orchestrator](D:\AI Project\HiveMind AI\orchestrator)
-- [implementation_report.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\implementation_report.md)
-
-Prompt package used for this phase:
-
-- [claude_implement_prompt.md](D:\AI Project\HiveMind AI\.ai-loop\input\claude_implement_prompt.md)
+- code changes in `orchestrator/`
+- `.ai-loop/artifacts/current/implementation_report.md`
 
 ### 5. Review phase
 
 Codex reviews the implementation and updates:
 
-- [review.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.md)
-- [review.json](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.json)
+- `.ai-loop/artifacts/current/review.md`
+- `.ai-loop/artifacts/current/review.json`
 
 Interpretation:
 
@@ -164,12 +170,12 @@ Interpretation:
 
 ### 6. Fix phase
 
-Claude reads the latest review artifacts and fixes only the unresolved review findings.
+Claude reads the latest review artifacts and fixes only unresolved review findings.
 
 After fixes:
 
 - rerun tests
-- update [implementation_report.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\implementation_report.md)
+- update `.ai-loop/artifacts/current/implementation_report.md`
 - send the code back for another review
 
 ## Review Discipline
@@ -183,7 +189,7 @@ The expected loop is:
 
 Important rule:
 
-- If a design change is required, Claude should not edit [design.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\design.md) directly. Claude should append a proposal to [design_amendments.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\design_amendments.md).
+- If a design change is required, Claude should not edit `.ai-loop/artifacts/current/design.md` directly. Claude should append a proposal to `.ai-loop/artifacts/current/design_amendments.md`.
 
 ## Testing
 
@@ -195,40 +201,9 @@ py -m pytest -q
 
 Current expectation in this repo is that tests stay green after each fix and each review round should mention the observed test result.
 
-## Git Workflow
-
-Recommended pattern:
-
-1. implement or review
-2. update artifacts in `.ai-loop/artifacts/current/`
-3. commit the code or artifact checkpoint
-
-Examples of checkpoints already used in this repo:
-
-- implementation/spec setup commits
-- review artifact commits
-- re-review commits
-
-This keeps the audit trail aligned with the orchestrator concept.
-
 ## Practical Notes
 
-- The source of truth for runtime state is [workflow_state.json](D:\AI Project\HiveMind AI\.ai-loop\state\workflow_state.json), not terminal memory.
-- Tests may pass while artifacts are outdated; keep [implementation_report.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\implementation_report.md), [review.md](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.md), and [review.json](D:\AI Project\HiveMind AI\.ai-loop\artifacts\current\review.json) in sync with the actual code state.
-- [orchestrator_runtime_spec.md](D:\AI Project\HiveMind AI\orchestrator_runtime_spec.md) is the best reference when code behavior and artifact behavior disagree.
-
-## Suggested Daily Routine
-
-```powershell
-git status --short
-py -m pytest -q
-py -m orchestrator status
-py -m orchestrator validate
-py -m orchestrator check-transition
-```
-
-Then:
-
-- if implementation changed, update `implementation_report.md`
-- if review changed, update `review.md` and `review.json`
-- commit the resulting checkpoint
+- The source of truth for runtime state is `.ai-loop/state/workflow_state.json`, not terminal memory.
+- Tests may pass while artifacts are outdated; keep implementation and review artifacts in sync with the actual code state.
+- `orchestrator_runtime_spec.md` is the best reference when code behavior and artifact behavior disagree.
+- The root `.ai-loop/` in this repo is the live workspace for this repo itself. The `.ai-loop/` inside `template/` is the clean portable starter version.

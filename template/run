@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+find_python() {
+  if command -v py >/dev/null 2>&1; then
+    printf '%s' "py"
+    return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    printf '%s' "python"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "python3"
+    return 0
+  fi
+  return 1
+}
+
+PYTHON_BIN="$(find_python)" || {
+  echo "Python executable not found in PATH." >&2
+  exit 1
+}
+
+exec "$PYTHON_BIN" -m orchestrator run "$@"

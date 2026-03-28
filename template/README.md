@@ -1,32 +1,28 @@
 # HiveMind Template
 
-This folder defines the reusable template that should be embedded into a new project or feature workspace.
+This folder is now a self-contained portable bundle for a new project or feature workspace.
 
-The goal of the template is:
+If you want to bring HiveMind into another project, carry this folder only.
 
-- carry over the orchestrator runtime
-- carry over the test suite
-- create a clean `.ai-loop` workspace
-- avoid copying the historical artifacts of this repository
-
-## What To Embed
-
-Copy these items into the target workspace:
+Contents included inside this folder:
 
 - `orchestrator/`
 - `tests/`
 - `skills/`
+- `scripts/`
+- `prompts/`
+- `.ai-loop/`
 - `pyproject.toml`
 - `.gitignore`
 - `orchestrator_runtime_spec.md`
-- `template/bootstrap/.ai-loop/`
-- `template/prompts/`
+- `run`
+- `embed_checklist.md`
 
-Do not copy the live `.ai-loop/` folder from the root of this repository into a new project, because it contains the history of this project creating itself.
+## Recommended Use
 
-## Bootstrap Script
+Option 1: copy this whole folder to a new location and rename it as the new workspace root.
 
-You can bootstrap a new workspace with:
+Option 2: run the bootstrap script from inside this folder:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_template.ps1 -TargetPath <TARGET_WORKSPACE>
@@ -38,20 +34,14 @@ Optional:
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_template.ps1 -TargetPath <TARGET_WORKSPACE> -RequirementTitle "Build feature X"
 ```
 
-## Bootstrap Flow
+## What To Edit First
 
-1. Copy the reusable files into the target project.
-2. Copy `template/bootstrap/.ai-loop/` to `.ai-loop/` in the target project.
-3. Keep `skills/` available so future agents can re-read the embedded package through the onboarding skill.
-4. Rewrite `.ai-loop/input/requirement.md` for the new project or feature.
-5. Initialize or update `.ai-loop/state/workflow_state.json`.
-6. Generate phase-specific prompt files from `template/prompts/`.
-7. Start the design phase with Codex.
-8. Continue with implement, review, and fix loops.
+1. `.ai-loop/input/requirement.md`
+2. `.ai-loop/state/workflow_state.json`
+3. agent command settings if your local Codex or Claude CLI differs
 
-## Template Philosophy
+## Philosophy
 
-- Template content should be generic and reusable.
-- Runtime code belongs in the target project.
-- Live artifacts belong only to the target project's own `.ai-loop`.
-- Prompt templates should use placeholders instead of hard-coded run data.
+- This folder should be portable by itself.
+- It should not depend on files outside the folder.
+- The `.ai-loop/` inside this folder is a clean starter workspace, not the historical live workspace of the current repository.
